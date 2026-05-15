@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Asisten Penulis Bahasa Indonesia",
+  "version": "1.0",
+  "description": "Ekstensi untuk mendeteksi typo dan memberikan saran perbaikan kata secara real-time.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"]
+    }
+  ]
+}
