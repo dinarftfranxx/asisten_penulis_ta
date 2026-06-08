@@ -14,3 +14,17 @@ __pycache__/
 # Django
 *.log
 local_settings.py
+
+# Data files (sudah di-import ke DB, terlalu besar untuk GitHub)
+nlp_engine/data/
+*.xlsx
+
+# Catatan internal AI (bukan bagian sistem)
+*.md
+!README.md
+
+# Script utility & percobaan (tetap lokal, tidak perlu di GitHub)
+cek_kata.py
+sortir_kbbi.py
+ekstrak_kbbi.py
+ekstrak_ngram.py

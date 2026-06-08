@@ -1,80 +1,43 @@
 # nlp_engine/views.py
-import re  # Modul bawaan Python untuk memisahkan kalimat
-import os
-import csv
+import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-# Import ke-3 algoritma kita
-from .algoritma import cari_saran_typo, cek_sentence_starter, cek_ngram_bigram
+from .models import KataKamus, FrasaKorpus, BentukTidakBaku
+from .algoritma import cari_saran_typo_db, cek_sentence_starter, cek_ngram_bigram_db
 
-# ===== MEMUAT DATA DARI CSV (SAAT SERVER PERTAMA KALI MENYALA) =====
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+# ===== MEMUAT DATA KECIL KE MEMORI SAAT SERVER MENYALA =====
+# KataKamus (75k) & BentukTidakBaku (3.5k) cukup kecil → cache di memori
+# FrasaKorpus (670k) → query database langsung (ada index)
 
-def muat_kamus_kata():
-    """Memuat daftar kata baku dari CSV ke dalam dictionary."""
-    kamus = {}
-    path = os.path.join(DATA_DIR, 'kamus_kata_baku.csv')
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                kamus[row['kata_baku']] = True
-        print(f"[OK] Kamus kata baku dimuat: {len(kamus):,} kata")
-    except FileNotFoundError:
-        print(f"[WARNING] File tidak ditemukan: {path}")
+def _muat_kamus_ke_memori():
+    """Muat kata baku ke set Python untuk pengecekan O(1)."""
+    kamus = set(KataKamus.objects.values_list('kata', flat=True))
+    print(f"[OK] Kamus kata baku dimuat dari DB: {len(kamus):,} kata")
     return kamus
 
-def muat_kamus_frasa():
-    """Memuat daftar frasa dari CSV ke dalam dictionary."""
-    kamus = {}
-    path = os.path.join(DATA_DIR, 'kamus_frasa.csv')
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                kamus[row['frasa']] = True
-        print(f"[OK] Kamus frasa dimuat: {len(kamus):,} frasa")
-    except FileNotFoundError:
-        print(f"[WARNING] File tidak ditemukan: {path}")
+def _muat_tidak_baku_ke_memori():
+    """Muat pemetaan tidak_baku → baku ke dict Python."""
+    kamus = dict(BentukTidakBaku.objects.values_list('kata_tidak_baku', 'kata_baku'))
+    print(f"[OK] Kamus tidak baku dimuat dari DB: {len(kamus):,} entri")
     return kamus
 
-def muat_kamus_tidak_baku():
-    """Memuat pemetaan kata tidak baku -> kata baku dari CSV."""
-    kamus = {}
-    path = os.path.join(DATA_DIR, 'kamus_tidak_baku.csv')
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                kamus[row['tidak_baku']] = row['bentuk_baku']
-        print(f"[OK] Kamus tidak baku dimuat: {len(kamus):,} entri")
-    except FileNotFoundError:
-        print(f"[WARNING] File tidak ditemukan: {path}")
-    return kamus
-
-# Data dimuat SEKALI saat server menyala, disimpan di memori
-KBBI_DICT = muat_kamus_kata()
-CORPUS_BIGRAM = muat_kamus_frasa()
-TIDAK_BAKU_DICT = muat_kamus_tidak_baku()
+KBBI_SET = _muat_kamus_ke_memori()
+TIDAK_BAKU_DICT = _muat_tidak_baku_ke_memori()
 
 
 @api_view(['POST'])
 def cek_teks(request):
     teks_input = request.data.get('teks', '')
     hasil_pengecekan = []
-    
-    # Kita pecah teks berdasarkan titik, tanda seru, atau tanda tanya
-    # Gunakan split yang mempertahankan pemisah jika memungkinkan, 
-    # tapi cara termudah adalah per kalimat:
+
     kalimat_list = re.split(r'[.!?\n]+', teks_input)
-    
+
     for kalimat in kalimat_list:
         kalimat = kalimat.strip()
         if not kalimat:
             continue
-            
+
         # --- TAHAP 1: CEK POS TAGGING (Awal Kalimat) ---
         peringatan_pos = cek_sentence_starter(kalimat)
         if peringatan_pos:
@@ -85,16 +48,35 @@ def cek_teks(request):
                 "konteks": kalimat
             })
 
-        # --- TAHAP 2: CEK TYPO (Levenshtein) & BENTUK TIDAK BAKU ---
+        # --- TAHAP 2: CEK TYPO & BENTUK TIDAK BAKU ---
         kata_kata = kalimat.split()
-        
+
         for i in range(len(kata_kata)):
             kata_asli = kata_kata[i]
             kata_bersih = kata_asli.strip('.,!?()[]{}"\'').lower()
-            
+
             if not kata_bersih:
                 continue
-            
+
+            # --- TAHAP 3: CEK N-GRAM (Kewajaran Frasa) via Database ---
+            if i < len(kata_kata) - 1:
+                if kata_asli[-1] not in '.,!?;:()[]{}"\'':
+                    kata_berikut_asli = kata_kata[i+1]
+
+                    if kata_berikut_asli[0] not in '.,!?;:()[]{}"\'':
+                        kata_berikut_bersih = kata_berikut_asli.strip('.,!?()[]{}"\'').lower()
+
+                        # N-Gram hanya berjalan jika KEDUA kata adalah kata baku
+                        if kata_bersih in KBBI_SET and kata_berikut_bersih in KBBI_SET:
+                            peringatan_ngram = cek_ngram_bigram_db(kata_bersih, kata_berikut_bersih)
+                            if peringatan_ngram:
+                                hasil_pengecekan.append({
+                                    "jenis_error": "Gaya Bahasa (N-Gram)",
+                                    "teks_bermasalah": f"{kata_asli} {kata_berikut_asli}",
+                                    "keterangan": peringatan_ngram,
+                                    "konteks": kalimat
+                                })
+
             # A. Cek bentuk tidak baku dulu (koreksi langsung)
             if kata_bersih in TIDAK_BAKU_DICT:
                 hasil_pengecekan.append({
@@ -103,11 +85,11 @@ def cek_teks(request):
                     "keterangan": f"Bentuk baku: {TIDAK_BAKU_DICT[kata_bersih]}",
                     "konteks": kalimat
                 })
-                continue  # Sudah ketemu koreksi langsung, skip Levenshtein
-                
-            # B. Eksekusi Levenshtein (Mendeteksi Typo)
-            if kata_bersih not in KBBI_DICT:
-                saran = cari_saran_typo(kata_bersih, KBBI_DICT)
+                continue
+
+            # B. Eksekusi Levenshtein via pg_trgm (Database)
+            if kata_bersih not in KBBI_SET:
+                saran = cari_saran_typo_db(kata_bersih)
                 if saran:
                     hasil_pengecekan.append({
                         "jenis_error": "Typo (Levenshtein)",
@@ -115,7 +97,7 @@ def cek_teks(request):
                         "keterangan": f"Mungkin maksudmu: {', '.join(saran)}",
                         "konteks": kalimat
                     })
-                    
+
     return Response({
         "status": "sukses",
         "teks_asli": teks_input,
