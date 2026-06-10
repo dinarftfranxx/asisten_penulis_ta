@@ -61,17 +61,17 @@ def cari_saran_typo_db(kata_typo, maksimal_saran=3):
 
 # ===== 3. CEK SENTENCE STARTER (POS Tagging sederhana) =====
 
-def cek_sentence_starter(kalimat):
-    """Mengecek apakah kalimat diawali kata yang tidak seharusnya."""
-    kata_terlarang = ["dan", "yang", "atau", "karena", "sehingga", "di mana"]
+def cek_sentence_starter(kalimat, aturan_dict):
+    """Mengecek apakah kalimat diawali kata yang tidak seharusnya (dari DB)."""
     kalimat_bersih = kalimat.strip().lower()
     if not kalimat_bersih:
         return None
     kata_pertama = kalimat_bersih.split()[0]
     kata_pertama = kata_pertama.strip('.,!?')
 
-    if kata_pertama in kata_terlarang:
-        return f"Kata '{kata_pertama.capitalize()}' sebaiknya tidak mengawali kalimat."
+    if kata_pertama in aturan_dict:
+        saran = aturan_dict[kata_pertama]
+        return f"Kata '{kata_pertama.capitalize()}' dilarang mengawali kalimat. Saran: {saran}"
     return None
 
 

@@ -3,7 +3,8 @@ import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import KataKamus, FrasaKorpus, BentukTidakBaku
+from .models import KataKamus, FrasaKorpus, BentukTidakBaku, AturanAwalKalimat
+from django.db.utils import ProgrammingError, OperationalError
 from .algoritma import cari_saran_typo_db, cek_sentence_starter, cek_ngram_bigram_db
 
 # ===== MEMUAT DATA KECIL KE MEMORI SAAT SERVER MENYALA =====
@@ -22,8 +23,19 @@ def _muat_tidak_baku_ke_memori():
     print(f"[OK] Kamus tidak baku dimuat dari DB: {len(kamus):,} entri")
     return kamus
 
+def _muat_aturan_awal_kalimat():
+    """Muat aturan awal kalimat ke dict Python."""
+    try:
+        aturan = dict(AturanAwalKalimat.objects.values_list('kata_terlarang', 'saran_pengganti'))
+        print(f"[OK] Aturan awal kalimat dimuat dari DB: {len(aturan)} entri")
+        return aturan
+    except (ProgrammingError, OperationalError):
+        print("[WARNING] Tabel aturan_awal_kalimat belum ada. Mengembalikan kamus kosong.")
+        return {}
+
 KBBI_SET = _muat_kamus_ke_memori()
 TIDAK_BAKU_DICT = _muat_tidak_baku_ke_memori()
+ATURAN_AWAL_KALIMAT_DICT = _muat_aturan_awal_kalimat()
 
 
 @api_view(['POST'])
@@ -39,7 +51,7 @@ def cek_teks(request):
             continue
 
         # --- TAHAP 1: CEK POS TAGGING (Awal Kalimat) ---
-        peringatan_pos = cek_sentence_starter(kalimat)
+        peringatan_pos = cek_sentence_starter(kalimat, ATURAN_AWAL_KALIMAT_DICT)
         if peringatan_pos:
             hasil_pengecekan.append({
                 "jenis_error": "Tata Bahasa (POS Tagging)",

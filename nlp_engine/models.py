@@ -87,3 +87,30 @@ class BentukTidakBaku(models.Model):
 
     def __str__(self):
         return f"{self.kata_tidak_baku} → {self.kata_baku}"
+
+
+class AturanAwalKalimat(models.Model):
+    """
+    Tabel aturan untuk kata-kata (biasanya konjungsi) yang dilarang mengawali kalimat.
+    Dilengkapi dengan saran kata pengganti.
+    """
+    kata_terlarang = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        help_text="Kata yang dilarang di awal kalimat (misal: sehingga, dan)"
+    )
+    saran_pengganti = models.CharField(
+        max_length=150,
+        help_text="Saran kata pengganti (misal: Akibatnya, Dengan demikian)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'aturan_awal_kalimat'
+        verbose_name = 'Aturan Awal Kalimat'
+        verbose_name_plural = 'Aturan Awal Kalimat'
+        ordering = ['kata_terlarang']
+
+    def __str__(self):
+        return f"{self.kata_terlarang} → {self.saran_pengganti}"
