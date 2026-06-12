@@ -13,15 +13,23 @@ from .algoritma import cari_saran_typo_db, cek_sentence_starter, cek_ngram_bigra
 
 def _muat_kamus_ke_memori():
     """Muat kata baku ke set Python untuk pengecekan O(1)."""
-    kamus = set(KataKamus.objects.values_list('kata', flat=True))
-    print(f"[OK] Kamus kata baku dimuat dari DB: {len(kamus):,} kata")
-    return kamus
+    try:
+        kamus = set(KataKamus.objects.values_list('kata', flat=True))
+        print(f"[OK] Kamus kata baku dimuat dari DB: {len(kamus):,} kata")
+        return kamus
+    except (ProgrammingError, OperationalError):
+        print("[WARNING] Tabel kamus_kata belum ada (mungkin sedang migrate).")
+        return set()
 
 def _muat_tidak_baku_ke_memori():
     """Muat pemetaan tidak_baku → baku ke dict Python."""
-    kamus = dict(BentukTidakBaku.objects.values_list('kata_tidak_baku', 'kata_baku'))
-    print(f"[OK] Kamus tidak baku dimuat dari DB: {len(kamus):,} entri")
-    return kamus
+    try:
+        kamus = dict(BentukTidakBaku.objects.values_list('kata_tidak_baku', 'kata_baku'))
+        print(f"[OK] Kamus tidak baku dimuat dari DB: {len(kamus):,} entri")
+        return kamus
+    except (ProgrammingError, OperationalError):
+        print("[WARNING] Tabel tidak_baku belum ada.")
+        return {}
 
 def _muat_aturan_awal_kalimat():
     """Muat aturan awal kalimat ke dict Python."""
