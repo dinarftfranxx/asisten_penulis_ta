@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +31,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'default-unsafe-secret-key-if-env-missing')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -49,6 +51,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -82,14 +85,19 @@ WSGI_APPLICATION = 'backend_django.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'db_asisten_penulis',
-        'USER': 'postgres',
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Mengambil password dari .env
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.postgresql',
+    #     'NAME': 'db_asisten_penulis',
+    #     'USER': 'postgres',
+    #     'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Mengambil password dari .env
+    #     'HOST': 'localhost',
+    #     'PORT': '5432',
+    # }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', f"postgresql://postgres:{os.getenv('DB_PASSWORD', '')}@localhost:5432/db_asisten_penulis"),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
@@ -128,6 +136,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

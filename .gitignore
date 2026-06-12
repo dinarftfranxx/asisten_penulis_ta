@@ -15,7 +15,7 @@ __pycache__/
 *.log
 local_settings.py
 
-# Data files (sudah di-import ke DB, terlalu besar untuk GitHub)
+# Data files (sudah di-import ke DB, terlalu gede buat GitHub)
 nlp_engine/data/
 *.xlsx
 
