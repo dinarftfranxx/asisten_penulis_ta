@@ -1,5 +1,5 @@
 // chrome_extension/content_script.js
-console.log("%c🚀 ASISTEN PENULIS SIAP DENGAN UI MELAYANG! 🚀", "color: white; background: blue; font-size: 14px; font-weight: bold; padding: 4px;");
+console.log("%cASISTEN PENULIS", "color: white; background: blue; font-size: 14px; font-weight: bold; padding: 4px;");
 
 // 1. INJECT CUSTOM CSS UNTUK TEMA UNIVERSAL & SCROLLBAR
 const styleSheet = document.createElement("style");
@@ -451,7 +451,14 @@ async function cekTypoKeBackend(teks) {
     }
 
     try {
-        const response = await fetch("http://127.0.0.1:8000/api/cek-teks/", {
+        
+        // const response = await fetch("http://127.0.0.1:8000/api/cek-teks/", {
+        //     method: "POST",
+        //     headers: { "Content-Type": "application/json" },
+        //     body: JSON.stringify({ teks: teks })
+        // });
+        //const response = await fetch("https://asistenpenulista.vercel.app/api/cek-teks/", {
+          const response = await fetch("https://asistenpenulista-production.up.railway.app/api/cek-teks/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ teks: teks })
