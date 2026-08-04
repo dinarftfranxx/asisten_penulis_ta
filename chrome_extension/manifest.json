@@ -3,6 +3,9 @@
   "name": "Asisten Penulis Bahasa Indonesia",
   "version": "1.0",
   "description": "Ekstensi untuk mendeteksi typo dan memberikan saran perbaikan kata secara real-time.",
+  "background": {
+    "service_worker": "background.js"
+  },
   "permissions": [
     "activeTab",
     "scripting"

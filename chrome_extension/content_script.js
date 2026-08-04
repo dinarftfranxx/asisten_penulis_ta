@@ -451,20 +451,20 @@ async function cekTypoKeBackend(teks) {
     }
 
     try {
-        
-        // const response = await fetch("http://127.0.0.1:8000/api/cek-teks/", {
-        //     method: "POST",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify({ teks: teks })
-        // });
-        //const response = await fetch("https://asistenpenulista.vercel.app/api/cek-teks/", {
-          const response = await fetch("https://asistenpenulista-production.up.railway.app/api/cek-teks/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ teks: teks })
+        // Kirim request ke background service worker (bypass CSP halaman)
+        const response = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: "cek-teks", teks: teks }, (result) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                    resolve(result);
+                }
+            });
         });
 
-        const data = await response.json();
+        if (!response.success) throw new Error(response.error);
+
+        const data = response.data;
         
         if (data.hasil && data.hasil.length > 0) {
             latestErrors = data.hasil;
@@ -480,7 +480,7 @@ async function cekTypoKeBackend(teks) {
     }
 }
 
-// 7. PASANG TELINGA
+
 document.addEventListener("keyup", debounce((event) => {
     const elemen = event.target;
     if (elemen.tagName === 'INPUT' || elemen.tagName === 'TEXTAREA' || elemen.isContentEditable) {
