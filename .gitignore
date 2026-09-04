@@ -19,7 +19,6 @@ local_settings.py
 nlp_engine/data/
 *.xlsx
 
-# Catatan internal AI (bukan bagian sistem)
 *.md
 !README.md
 
@@ -28,4 +27,7 @@ cek_kata.py
 sortir_kbbi.py
 ekstrak_kbbi.py
 ekstrak_ngram.py
-DRAFT TA DINAR TI D.pdf
+DRAFT TA Dinar TI D.pdf
+DRAFT TA Dinar TI D.docx
+DRAFT Laporan TA - IrgiNM.pdf
+DRAFT Laporan TA - IrgiNM_Revisi.pdf

@@ -1,7 +1,6 @@
-// Background service worker - tidak terpengaruh CSP halaman
-// Semua request ke backend dilakukan di sini
-
-const BACKEND_URL = "https://asistenpenulista-production.up.railway.app/api/cek-teks/";
+// Endpoint Lokal (PostgreSQL Laptop)
+const BACKEND_URL = "http://127.0.0.1:8000/api/cek-teks/";
+// const BACKEND_URL = "https://asistenpenulista-production.up.railway.app/api/cek-teks/"; // Endpoint Railway
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "cek-teks") {

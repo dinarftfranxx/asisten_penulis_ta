@@ -16,7 +16,7 @@ class KataKamus(models.Model):
         help_text="Kata baku dari KBBI"
     )
     kelas_kata = models.CharField(
-        max_length=50,
+        max_length=255,
         blank=True,
         null=True,
         help_text="Kelas kata (Nomina, Verba, Adjektiva, dll)"
@@ -36,10 +36,7 @@ class KataKamus(models.Model):
 
 
 class FrasaKorpus(models.Model):
-    """
-    Tabel korpus frasa (bigram) dari dataset Leipzig Corpora.
-    Digunakan oleh algoritma N-Gram untuk mengecek kewajaran frasa.
-    """
+   
     frasa = models.CharField(
         max_length=200,
         unique=True,

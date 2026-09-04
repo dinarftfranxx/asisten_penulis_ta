@@ -52,14 +52,14 @@ class Command(BaseCommand):
         if options['tidak_baku'] or import_semua:
             self._import_bentuk_tidak_baku(clear=options['clear'])
 
-        self.stdout.write(self.style.SUCCESS('\n✅ Semua import selesai!'))
+        self.stdout.write(self.style.SUCCESS('\n[DONE] Semua import selesai!'))
 
     def _import_kata_kamus(self, clear=False):
         """
         Import dari kamus_kata_baku.csv dan kamus_kelas_kata.csv.
         Digabung jadi satu tabel KataKamus.
         """
-        self.stdout.write('\n📖 Import Kata Kamus...')
+        self.stdout.write('\n[IMPORT] Import Kata Kamus...')
 
         if clear:
             deleted, _ = KataKamus.objects.all().delete()
@@ -103,7 +103,7 @@ class Command(BaseCommand):
 
         # Tahap 4: Bulk insert
         objects = [
-            KataKamus(kata=kata, kelas_kata=kelas)
+            KataKamus(kata=kata, kelas_kata=kelas[:250] if kelas else None)
             for kata, kelas in new_entries.items()
         ]
 
@@ -113,18 +113,18 @@ class Command(BaseCommand):
 
         total = KataKamus.objects.count()
         self.stdout.write(self.style.SUCCESS(
-            f'   ✅ {len(objects)} kata diimport ({elapsed:.1f}s). Total di DB: {total}'
+            f'   [OK] {len(objects)} kata diimport ({elapsed:.1f}s). Total di DB: {total}'
         ))
 
     def _import_frasa_korpus(self, clear=False):
-        """Import dari kamus_frasa.csv ke tabel FrasaKorpus."""
-        self.stdout.write('\n📚 Import Frasa Korpus (bigram)...')
+        """Import dari bigram_frasa_korpus.csv ke tabel FrasaKorpus."""
+        self.stdout.write('\n[IMPORT] Import Frasa Korpus (bigram)...')
 
         if clear:
             deleted, _ = FrasaKorpus.objects.all().delete()
             self.stdout.write(f'   Hapus {deleted} data lama')
 
-        file_frasa = os.path.join(self.DATA_DIR, 'kamus_frasa.csv')
+        file_frasa = os.path.join(self.DATA_DIR, 'bigram_frasa_korpus.csv')
 
         # Baca semua frasa dari CSV
         frasa_list = []
@@ -139,7 +139,7 @@ class Command(BaseCommand):
                 if frasa:
                     frasa_list.append((frasa, frekuensi))
 
-        self.stdout.write(f'   Baca {len(frasa_list)} frasa dari kamus_frasa.csv')
+        self.stdout.write(f'   Baca {len(frasa_list)} frasa dari bigram_frasa_korpus.csv')
 
         # Skip yang sudah ada
         existing_frasa = set(FrasaKorpus.objects.values_list('frasa', flat=True))
@@ -164,12 +164,12 @@ class Command(BaseCommand):
         elapsed = time.time() - start
         total = FrasaKorpus.objects.count()
         self.stdout.write(self.style.SUCCESS(
-            f'   ✅ {len(objects)} frasa diimport ({elapsed:.1f}s). Total di DB: {total}'
+            f'   [OK] {len(objects)} frasa diimport ({elapsed:.1f}s). Total di DB: {total}'
         ))
 
     def _import_bentuk_tidak_baku(self, clear=False):
         """Import dari kamus_tidak_baku.csv ke tabel BentukTidakBaku."""
-        self.stdout.write('\n🔄 Import Bentuk Tidak Baku...')
+        self.stdout.write('\n[IMPORT] Import Bentuk Tidak Baku...')
 
         if clear:
             deleted, _ = BentukTidakBaku.objects.all().delete()
@@ -206,5 +206,5 @@ class Command(BaseCommand):
 
         total = BentukTidakBaku.objects.count()
         self.stdout.write(self.style.SUCCESS(
-            f'   ✅ {len(objects)} mapping diimport ({elapsed:.1f}s). Total di DB: {total}'
+            f'   [OK] {len(objects)} mapping diimport ({elapsed:.1f}s). Total di DB: {total}'
         ))

@@ -46,6 +46,74 @@ TIDAK_BAKU_DICT = _muat_tidak_baku_ke_memori()
 ATURAN_AWAL_KALIMAT_DICT = _muat_aturan_awal_kalimat()
 
 
+def is_kata_baku_lengkap(kata, kbbi_set):
+    """
+    Validasi kata baku dengan mempertimbangkan morfologi Bahasa Indonesia
+    (imbuhan produktif: di-, ter-, ber-, se-, ke-...-an, pe-...-an, -nya, -lah, dll)
+    """
+    if not kata:
+        return False
+    if kata in kbbi_set:
+        return True
+    
+    # 1. Klitika / Akhiran (-nya, -ku, -mu, -lah, -kah, -pun)
+    for suf in ['nya', 'ku', 'mu', 'lah', 'kah', 'pun']:
+        if kata.endswith(suf) and len(kata) > len(suf) + 2:
+            base = kata[:-len(suf)]
+            if base in kbbi_set:
+                return True
+            if base.startswith('di') and base[2:] in kbbi_set:
+                return True
+            if base.startswith('ter') and base[3:] in kbbi_set:
+                return True
+            if base.startswith('ber') and base[3:] in kbbi_set:
+                return True
+
+    # 2. Awalan Pasif di-
+    if kata.startswith('di') and len(kata) > 3:
+        stem = kata[2:]
+        if stem in kbbi_set:
+            return True
+        if stem.endswith('kan') and stem[:-3] in kbbi_set:
+            return True
+        if stem.endswith('i') and stem[:-1] in kbbi_set:
+            return True
+        if stem.endswith('an') and stem[:-2] in kbbi_set:
+            return True
+
+    # 3. Awalan ter-
+    if kata.startswith('ter') and len(kata) > 4:
+        stem = kata[3:]
+        if stem in kbbi_set:
+            return True
+        if stem.endswith('kan') and stem[:-3] in kbbi_set:
+            return True
+        if stem.endswith('i') and stem[:-1] in kbbi_set:
+            return True
+        if stem.endswith('an') and stem[:-2] in kbbi_set:
+            return True
+
+    # 4. Awalan ber-
+    if kata.startswith('ber') and len(kata) > 4:
+        stem = kata[3:]
+        if stem in kbbi_set:
+            return True
+        if stem.endswith('an') and stem[:-2] in kbbi_set:
+            return True
+
+    # 5. Awalan se-
+    if kata.startswith('se') and len(kata) > 3:
+        if kata[2:] in kbbi_set:
+            return True
+
+    # 6. Konfiks ke-...-an dan pe-...-an
+    if (kata.startswith('ke') or kata.startswith('pe')) and kata.endswith('an') and len(kata) > 5:
+        if kata[2:-2] in kbbi_set:
+            return True
+
+    return False
+
+
 @api_view(['POST'])
 def cek_teks(request):
     teks_input = request.data.get('teks', '')
@@ -68,36 +136,17 @@ def cek_teks(request):
                 "konteks": kalimat
             })
 
-        # --- TAHAP 2: CEK TYPO & BENTUK TIDAK BAKU ---
+        # --- TAHAP 2: CEK BENTUK TIDAK BAKU & TYPO ---
         kata_kata = kalimat.split()
 
         for i in range(len(kata_kata)):
             kata_asli = kata_kata[i]
             kata_bersih = kata_asli.strip('.,!?()[]{}"\'').lower()
 
-            if not kata_bersih:
+            if not kata_bersih or not kata_bersih.isalpha():
                 continue
 
-            # --- TAHAP 3: CEK N-GRAM (Kewajaran Frasa) via Database ---
-            if i < len(kata_kata) - 1:
-                if kata_asli[-1] not in '.,!?;:()[]{}"\'':
-                    kata_berikut_asli = kata_kata[i+1]
-
-                    if kata_berikut_asli[0] not in '.,!?;:()[]{}"\'':
-                        kata_berikut_bersih = kata_berikut_asli.strip('.,!?()[]{}"\'').lower()
-
-                        # N-Gram hanya berjalan jika KEDUA kata adalah kata baku
-                        if kata_bersih in KBBI_SET and kata_berikut_bersih in KBBI_SET:
-                            peringatan_ngram = cek_ngram_bigram_db(kata_bersih, kata_berikut_bersih)
-                            if peringatan_ngram:
-                                hasil_pengecekan.append({
-                                    "jenis_error": "Gaya Bahasa (N-Gram)",
-                                    "teks_bermasalah": f"{kata_asli} {kata_berikut_asli}",
-                                    "keterangan": peringatan_ngram,
-                                    "konteks": kalimat
-                                })
-
-            # A. Cek bentuk tidak baku dulu (koreksi langsung)
+            # A. Cek Bentuk Tidak Baku Terlebih Dahulu
             if kata_bersih in TIDAK_BAKU_DICT:
                 hasil_pengecekan.append({
                     "jenis_error": "Bentuk Tidak Baku",
@@ -107,8 +156,8 @@ def cek_teks(request):
                 })
                 continue
 
-            # B. Eksekusi Levenshtein via pg_trgm (Database)
-            if kata_bersih not in KBBI_SET:
+            # B. Cek Typo (Levenshtein + pg_trgm) jika bukan kata baku & bukan bentuk berimbuhan sah
+            if not is_kata_baku_lengkap(kata_bersih, KBBI_SET):
                 saran = cari_saran_typo_db(kata_bersih)
                 if saran:
                     hasil_pengecekan.append({
